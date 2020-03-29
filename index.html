@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="node_modules/d3-sankey-diagram/build/d3-sankey-diagram.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden
+        }
+
+        svg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%
+        }
+
+        svg .link {
+            opacity: 0.8;
+            fill: steelblue;
+        }
+
+        svg .link:hover {
+            opacity: 1;
+        }
+
+        svg g.sankey {
+            font-size: 10pt;
+        }
+
+        svg .node line {
+            stroke-width: 1px;
+            stroke: #000;
+        }
+
+        svg .node-type-process line {
+            stroke-width: 4px;
+            stroke: #888;
+        }
+
+        svg .group rect {
+            fill: #eee;
+            stroke: #bbb;
+            stroke-width: 0.5px;
+        }
+
+        svg .group text {
+            fill: #999;
+        }
+    </style>
+</head>
+
+<body>
+    <svg id="graph" width="1000" height="1000"></svg>
+    <script>
+        const layout = d3.sankey()
+            .extent([[200, 10], [800, 500]]);
+
+        const color = d3.scaleOrdinal(d3.schemeDark2);
+
+        const diagram = d3.sankeyDiagram()
+            .nodeTitle(d => d.title || d.id)
+            .linkColor(d => d.color || color(d.source.id));
+
+        d3.json('data.json', data => {
+            var svg = d3.select("#graph")
+                .append("g")
+                .datum(layout.scale(null)(data))
+                .call(diagram);
+        });
+
+    </script>
+</body>
+
+</html>
