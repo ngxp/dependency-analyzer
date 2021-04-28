@@ -1,5 +1,5 @@
 import { existsSync, promises as fs } from 'fs';
-import { isUndefined, map, uniqBy } from 'lodash';
+import { forEach, groupBy, isUndefined, map, uniq } from 'lodash';
 import * as path from 'path';
 import { ExportSpecifier, Node, Project as TsProject } from 'ts-morph';
 
@@ -19,13 +19,13 @@ async function run() {
         .filter(tsConfigPath => existsSync(tsConfigPath))
         .forEach(tsConfigPath => tsProject.addSourceFilesFromTsConfig(tsConfigPath));
 
-    const references = getLibraryBarrelFilePaths(workspace)
+    const symbols = getLibraryBarrelFilePaths(workspace)
         .map(barrelFilePath => tsProject.getSourceFile(barrelFilePath)!)
         .filter(file => !isUndefined(file))
         .flatMap(file => file.getExportSymbols().map(symbol => ({
-            file,
-            symbol,
-            referencingSourceFiles: symbol.getDeclarations()
+            project: getProjectName(workspace, file.getFilePath()),
+            symbol: symbol.getName(),
+            referencingProjects: uniq(symbol.getDeclarations()
                 .flatMap(declaration => {
                     if (declaration instanceof ExportSpecifier) {
                         return declaration.getSymbol()!.getAliasedSymbol()!.getDeclarations()
@@ -39,61 +39,16 @@ async function run() {
                     }
 
                     return declaration.findReferencesAsNodes()
-                        .map(node => node.getSourceFile())
-                })
+                        .map(node => getProjectName(workspace, node.getSourceFile().getFilePath()))
+                }))
+                .filter(project => project !== getProjectName(workspace, file.getFilePath()))
         })));
 
-    const data = {
-        nodes: [] as any[],
-        links: [] as any[]
-    };
+    forEach(
+        groupBy(symbols, 'project'),
+        (symbols, project) => console.log(`${project}:\n${symbols.map(({ symbol, referencingProjects }) => `   ${symbol} (${referencingProjects.join(', ')})`).join('\n')}`)
+    )
 
-    const blacklist = ['resource'];
-
-    references.forEach(({ file, referencingSourceFiles }) => {
-        const source = getProjectName(workspace, file!.getFilePath());
-        const sourceId = `source-${source}`;
-
-        if (blacklist.includes(source)) { return }
-
-        data.nodes.push({
-            id: sourceId,
-            title: source
-        });
-
-        referencingSourceFiles.forEach(referencingFile => {
-            const target = getProjectName(workspace, referencingFile.getSourceFile().getFilePath());
-            const targetId = `target-${target}`;
-
-            if (blacklist.includes(target)) { return }
-
-            if (target === source) {
-                return;
-            }
-
-            data.nodes.push({
-                id: targetId,
-                title: target
-            });
-
-            let link = data.links.find(link => link.source === sourceId && link.target === targetId);
-
-            if (isUndefined(link)) {
-                link = {
-                    source: sourceId,
-                    target: targetId,
-                    value: 0
-                };
-                data.links.push(link);
-            }
-
-            link.value = link.value + 1;
-        });
-    });
-
-    data.nodes = uniqBy(data.nodes, 'id');
-
-    await fs.writeFile('data.json', JSON.stringify(data, undefined, 4));
 }
 
 interface Workspace {
