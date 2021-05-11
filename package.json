@@ -14,7 +14,7 @@
   "dependencies": {
     "d3-sankey-diagram": "0.7.3",
     "dagre-d3": "0.6.4",
-    "lodash": "4.17.15",
+    "lodash": "4.17.21",
     "ts-morph": "7.0.1",
     "typescript": "3.8.3"
   },
